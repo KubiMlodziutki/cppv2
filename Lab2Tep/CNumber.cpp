@@ -4,7 +4,7 @@
 
 using namespace std;
 
-CNumber::CNumber() : num_tab(NULL), num_tab_len(0), is_negative(false), num_as_str("") {}
+CNumber::CNumber() : num_tab(nullptr), num_tab_len(0), is_negative(false), num_as_str("") {}
 
 CNumber::CNumber(int value) {
     is_negative = (value < 0);
@@ -327,7 +327,7 @@ CNumber CNumber::operator/(const CNumber& other) const {
     if (result.num_as_str == "0") {
         result.is_negative = false;
     }
-
+    
     return result;
 }
 
