@@ -6,16 +6,17 @@
 
 using namespace std;
 
+class ResultSaveState;
+
 class TreeUI {
 public:
     TreeUI();
     void run();
 
-
 private:
     Tree tree;
 
-    void processCommand(const string& command);
+    void processCommand(const string& command, ResultSaveState& saver);
 
     string INFO_WELCOME = "Hello, this is Tree calculation app";
     string INFO_COMMANDS = "Commands:";
@@ -27,10 +28,22 @@ private:
     string INFO_EXIT = "  exit - Exit the app";
     string PROMPT = "> ";
     string INFO_EXITING = "Exiting...";
-    string ERROR_UNKNOWN_CMD = "Error: Unknown command '";
-    string ERROR_NO_FORMULA = "Error: No formula provided.";
+    string ERROR_UNKNOWN_CMD = "Error: Unknown command: ";
+    string ERROR_NO_FORMULA = "No formula provided.";
     string ERROR_NO_VALUES = "Error: No values provided.";
     string RESULT_PREFIX = "Result: ";
+    string CMD_ENTER = "enter";
+    string CMD_VARS = "vars";
+    string CMD_PRINT = "print";
+    string CMD_COMP = "comp";
+    string CMD_JOIN = "join";
+    string ERROR_RESULT = "Error: ";
+    string INFO_TREE_SUCCESS = "Tree has grown succesfully";
+    string INPUT_EXIT = "exit";
+    string SUCC_JOIN = "Successfully joined two trees.";
+    string AVAILABLE_VARS = "Variables:";
 
+    string SAVE_PATH = "D:/syf/output.txt";
 };
+
 #endif

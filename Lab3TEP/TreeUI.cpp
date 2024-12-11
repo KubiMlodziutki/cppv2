@@ -1,13 +1,14 @@
 #include "TreeUI.h"
+#include "ResultSaveState.h"
 #include <iostream>
 #include <sstream>
+#include <limits>
 
 using namespace std;
 
 TreeUI::TreeUI() {}
 
 void TreeUI::run() {
-    string input;
     cout << INFO_WELCOME << endl;
     cout << INFO_COMMANDS << endl;
     cout << INFO_ENTER << endl;
@@ -17,39 +18,99 @@ void TreeUI::run() {
     cout << INFO_JOIN << endl;
     cout << INFO_EXIT << endl;
 
-    while (true) {
+    bool running = true;
+    ResultSaveState saver(SAVE_PATH);
+
+    while (running) {
         cout << PROMPT;
-        getline(cin, input);
-        if (input == "exit") {
-            cout << INFO_EXITING << endl;
+        string input;
+        if (!getline(cin, input)) {
             break;
         }
-        processCommand(input);
+
+        if (input == INPUT_EXIT) {
+            cout << INFO_EXITING << endl;
+            running = false;
+        }
+        else {
+            processCommand(input, saver);
+        }
     }
 }
 
-void TreeUI::processCommand(const string& command) {
+void TreeUI::processCommand(const string& command, ResultSaveState& saver) {
     istringstream stream(command);
     string cmd;
     stream >> cmd;
 
-    if (cmd == "enter") {
+    if (cmd == CMD_ENTER) {
         string formula;
-        getline(stream, formula);
+        {
+            string prompt;
+            getline(stream, prompt);
+            if (!prompt.empty() && prompt[0] == ' ') {
+                prompt.erase(0, 1);
+            }
+            formula = prompt;
+        }
+
         if (formula.empty()) {
-            cout << ERROR_NO_FORMULA << endl;
+            cout << ERROR_RESULT + ERROR_NO_FORMULA << endl;
+            return;
+        }
+
+        Result<Tree*, Error> result = Tree::growTree<Tree*, Error>(formula);
+
+        saver.saveToFile(result);
+
+        if (result.isSuccess()) {
+            Tree* newTree = result.getValue();
+            tree = *newTree;
+            delete newTree;
+            cout << INFO_TREE_SUCCESS << endl;
         }
         else {
-            tree.enter(formula);
+            vector<Error*>& errors = result.getErrors();
+            for (int i = 0; i < errors.size(); i++) {
+                cout << ERROR_RESULT << errors[i]->getError() << endl;
+            }
+        }
+
+    }
+    else if (cmd == CMD_VARS) {
+        Result<vector<string>, Error> resultVars = tree.vars();
+
+        saver.saveToFile(resultVars);
+
+        if (resultVars.isSuccess()) {
+            vector<string> vars = resultVars.getValue();
+            cout << AVAILABLE_VARS;
+            for (int i = 0; i < vars.size(); i++) {
+                cout << " " << vars[i];
+            }
+            cout << endl;
+        }
+        else {
+            vector<Error*>& errors = resultVars.getErrors();
+            for (int i = 0; i < errors.size(); i++) {
+                cout << ERROR_RESULT << errors[i]->getError() << endl;
+            }
+        }
+
+    }
+    else if (cmd == CMD_PRINT) {
+        Result<void, Error> resultPrint = tree.print();
+
+        saver.saveToFile(resultPrint);
+
+        if (!resultPrint.isSuccess()) {
+            vector<Error*>& errors = resultPrint.getErrors();
+            for (int i = 0; i < errors.size(); i++) {
+                cout << ERROR_RESULT << errors[i]->getError() << endl;
+            }
         }
     }
-    else if (cmd == "vars") {
-        tree.vars();
-    }
-    else if (cmd == "print") {
-        tree.print();
-    }
-    else if (cmd == "comp") {
+    else if (cmd == CMD_COMP) {
         vector<double> values;
         double val;
         while (stream >> val) {
@@ -60,21 +121,53 @@ void TreeUI::processCommand(const string& command) {
             cout << ERROR_NO_VALUES << endl;
         }
         else {
-            double result = tree.comp(values);
-            cout << RESULT_PREFIX << result << endl;
+            Result<double, Error> resultComp = tree.comp(values);
+
+            saver.saveToFile(resultComp);
+
+            if (resultComp.isSuccess()) {
+                cout << RESULT_PREFIX << resultComp.getValue() << endl;
+            }
+            else {
+                vector<Error*>& errors = resultComp.getErrors();
+                for (int i = 0; i < errors.size(); i++) {
+                    cout << ERROR_RESULT << errors[i]->getError() << endl;
+                }
+            }
         }
+
     }
-    else if (cmd == "join") {
+    else if (cmd == CMD_JOIN) {
         string formula;
-        getline(stream, formula);
+        {
+            string toJoin;
+            getline(stream, toJoin);
+            if (!toJoin.empty() && toJoin[0] == ' ') {
+                toJoin.erase(0, 1);
+            }
+            formula = toJoin;
+        }
+
         if (formula.empty()) {
-            cout << ERROR_NO_FORMULA << endl;
+            cout << ERROR_RESULT + ERROR_NO_FORMULA << endl;
+            return;
+        }
+
+        Result<void, Error> joined = tree.join(formula);
+
+        saver.saveToFile(joined);
+
+        if (!joined.isSuccess()) {
+            vector<Error*>& errors = joined.getErrors();
+            for (int i = 0; i < errors.size(); i++) {
+                cout << ERROR_RESULT << errors[i]->getError() << endl;
+            }
         }
         else {
-            tree.join(formula);
+            cout << SUCC_JOIN << endl;
         }
     }
     else {
-        cout << ERROR_UNKNOWN_CMD << cmd << "'." << endl;
+        cout << ERROR_UNKNOWN_CMD << cmd << endl;
     }
 }

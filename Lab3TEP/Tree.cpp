@@ -1,5 +1,7 @@
 #include "Tree.h"
 #include "Node.h"
+#include "Error.h"
+#include "Result.h"
 #include <iostream>
 #include <sstream>
 #include <algorithm>
@@ -14,17 +16,19 @@ Tree::~Tree() {
 
 Node* Tree::copyNode(const Node* node) const {
     if (!node) return nullptr;
+
     Node* newNode = new Node(node->value);
     for (int i = 0; i < node->children.size(); i++) {
         newNode->children.push_back(copyNode(node->children[i]));
     }
+
     return newNode;
 }
 
 int Tree::getChildrenNumber(const string& operation) const {
-    if (operation == "+" || operation == "-" || operation == "*" || operation == "/")
+    if (operation == OPERATION_ADD || operation == OPERATION_SUBSTRACT || operation == OPERATION_MULTIPLICATION || operation == OPERATION_DIVISION)
         return 2;
-    else if (operation == "sin" || operation == "cos")
+    else if (operation == OPERATION_SIN || operation == OPERATION_COS)
         return 1;
     else
         return 0;
@@ -32,40 +36,55 @@ int Tree::getChildrenNumber(const string& operation) const {
 
 bool Tree::isNumber(const string& value) const {
     if (value.empty()) return false;
-    return all_of(value.begin(), value.end(), isdigit);
+    return all_of(value.begin(), value.end(), ::isdigit);
 }
 
-Node* Tree::parseTokens(const vector<string>& tokens, int& index) {
+Result<Node*, Error> Tree::parseTokens(const vector<string>& tokens, int& index) {
     if (index >= tokens.size()) {
-        return nullptr;
+        return Result<Node*, Error>::ok(nullptr);
     }
 
     string token = tokens[index++];
     Node* node = new Node(token);
     int childNum = getChildrenNumber(token);
 
+    vector<Error*> errors;
+
     for (int i = 0; i < childNum; i++) {
         if (index >= tokens.size()) {
-            cout << WARN_MISSING_OPERATOR_1 << token << WARN_MISSING_OPERATOR_2 << endl;
-            node->children.push_back(new Node("1"));
+            errors.push_back(new Error(WARN_MISSING_OPERATOR_1 + token + WARN_MISSING_OPERATOR_2));
+            node->children.push_back(new Node(MISSING_OPERATOR_NEW_OPERAND));
         }
         else {
-            node->children.push_back(parseTokens(tokens, index));
+            Result<Node*, Error> childResult = parseTokens(tokens, index);
+            if (!childResult.isSuccess()) {
+                vector<Error*>& childErrors = childResult.getErrors();
+                errors.insert(errors.end(), childErrors.begin(), childErrors.end());
+                node->children.push_back(nullptr);
+            }
+            else {
+                node->children.push_back(childResult.getValue());
+            }
         }
     }
 
-    return node;
+    if (!errors.empty()) {
+        return Result<Node*, Error>::fail(errors);
+    }
+
+    return Result<Node*, Error>::ok(node);
 }
 
 void Tree::collectTokens(Node* node, vector<string>& tokens) const {
     if (!node) return;
+
     tokens.push_back(node->value);
     for (int i = 0; i < node->children.size(); i++) {
         collectTokens(node->children[i], tokens);
     }
 }
 
-bool Tree::enter(const string& formula) {
+Result<void, Error> Tree::enter(const string& formula) {
     if (root) {
         delete root;
         root = nullptr;
@@ -80,43 +99,44 @@ bool Tree::enter(const string& formula) {
     }
 
     if (tokens.empty()) {
-        cout << ERROR_EMPTY_FORMULA << endl;
-        return false;
+        return Result<void, Error>::fail(new Error(ERROR_EMPTY_FORMULA));
     }
 
     int index = 0;
-    root = parseTokens(tokens, index);
+    Result<Node*, Error> parseResult = parseTokens(tokens, index);
 
+    if (!parseResult.isSuccess()) {
+        delete root;
+        root = nullptr;
+        return Result<void, Error>::fail(parseResult.getErrors());
+    }
+
+    root = parseResult.getValue();
+
+    vector<Error*> errors;
     if (index < tokens.size()) {
-        cout << WARN_TOO_MANY_TOKENS << index + 1 << " onwards." << endl;
+        errors.push_back(new Error(WARN_TOO_MANY_TOKENS + to_string(index + 1)));
     }
 
     vector<string> correctedTokens;
     collectTokens(root, correctedTokens);
 
-    cout << INFO_PROCESSED_FORMULA;
-    for (int i = 0; i < correctedTokens.size(); i++) {
-        cout << " " << correctedTokens[i];
+    if (!errors.empty()) {
+        return Result<void, Error>::fail(errors);
     }
-    cout << endl;
 
-    return true;
+    return Result<void, Error>::ok();
 }
 
-void Tree::vars() const {
+Result<vector<string>, Error> Tree::vars() const {
     if (!root) {
-        cout << ERROR_NO_FORMULA << endl;
-        return;
+        return Result<vector<string>, Error>::fail(new Error(ERROR_NO_FORMULA));
     }
 
-    vector<string> vars_list;
-    collectVars(root, vars_list);
+    vector<string> vars;
+    collectVars(root, vars);
 
-    cout << INFO_VARIABLES;
-    for (int i = 0; i < vars_list.size(); i++) {
-        cout << " " << vars_list[i];
-    }
-    cout << endl;
+    return Result<vector<string>, Error>::ok(vars);
 }
 
 void Tree::collectVars(Node* node, vector<string>& vars) const {
@@ -133,57 +153,65 @@ void Tree::collectVars(Node* node, vector<string>& vars) const {
     }
 }
 
-void Tree::print() const {
+Result<void, Error> Tree::print() const {
     if (!root) {
-        cout << ERROR_NO_FORMULA << endl;
-        return;
+        return Result<void, Error>::fail(new Error(ERROR_NO_FORMULA));
     }
+
     printTree(root);
     cout << endl;
+
+    return Result<void, Error>::ok();
 }
 
-void Tree::printTree(Node* node) const {
-    if (!node) return;
+Result<void, Error> Tree::printTree(Node* node) const {
+    if (!node) return Result<void, Error>::ok();
 
     cout << node->value << " ";
     for (int i = 0; i < node->children.size(); i++) {
-        printTree(node->children[i]);
+        Result<void, Error> resultPrint = printTree(node->children[i]);
+        if (!resultPrint.isSuccess()) {
+            return resultPrint;
+        }
     }
+
+    return Result<void, Error>::ok();
 }
 
-double Tree::comp(const vector<double>& values) const {
+Result<double, Error> Tree::comp(const vector<double>& values) const {
     if (!root) {
-        cout << ERROR_NO_FORMULA << endl;
-        return 0;
+        return Result<double, Error>::fail(new Error(ERROR_NO_FORMULA));
     }
-    vector<string> vars_list;
-    collectVars(root, vars_list);
-    if (values.size() != vars_list.size()) {
-        cout << ERROR_WRONG_VAR_COUNT << endl;
-        return 0;
+
+    vector<string> vars;
+    collectVars(root, vars);
+    if (values.size() != vars.size()) {
+        return Result<double, Error>::fail(new Error(ERROR_WRONG_VAR_COUNT));
     }
-    return evaluate(root, vars_list, values);
+
+    double computed = evaluate(root, vars, values);
+    return Result<double, Error>::ok(computed);
 }
 
 double Tree::evaluate(Node* node, const vector<string>& vars, const vector<double>& values) const {
     if (!node) return 0;
 
-    if (node->value == "+") {
+    if (node->value == OPERATION_ADD) {
         return evaluate(node->children[0], vars, values) + evaluate(node->children[1], vars, values);
     }
-    else if (node->value == "-") {
+    else if (node->value == OPERATION_SUBSTRACT) {
         return evaluate(node->children[0], vars, values) - evaluate(node->children[1], vars, values);
     }
-    else if (node->value == "*") {
+    else if (node->value == OPERATION_MULTIPLICATION) {
         return evaluate(node->children[0], vars, values) * evaluate(node->children[1], vars, values);
     }
-    else if (node->value == "/") {
+    else if (node->value == OPERATION_DIVISION) {
         return evaluate(node->children[0], vars, values) / evaluate(node->children[1], vars, values);
     }
-    else if (node->value == "sin") {
+    else if (node->value == OPERATION_SIN) {
         return sin(evaluate(node->children[0], vars, values));
     }
-    else if (node->value == "cos") {
+    else if (node->value == OPERATION_COS) {
         return cos(evaluate(node->children[0], vars, values));
     }
     else {
@@ -196,39 +224,29 @@ double Tree::evaluate(Node* node, const vector<string>& vars, const vector<doubl
     }
 }
 
-void Tree::join(const string& formula) {
+Result<void, Error> Tree::join(const string& formula) {
     Tree newTree;
-    if (!newTree.enter(formula)) {
-        cout << ERROR_INFALID_JOIN << endl;
-        return;
+    Result<void, Error> resultJoin = newTree.enter(formula);
+
+    if (!resultJoin.isSuccess()) {
+        vector<Error*>& errors = resultJoin.getErrors();
+        errors.push_back(new Error(ERROR_INFALID_JOIN));
+
+        return Result<void, Error>::fail(errors);
     }
 
     vector<pair<Node*, Node*>> leaves;
     findLeavesWithParents(root, nullptr, leaves);
 
     if (leaves.empty()) {
-        cout << ERROR_NO_LEAVES << endl;
-        return;
+        return Result<void, Error>::fail(new Error(ERROR_NO_LEAVES));
     }
 
-    cout << INFO_AVAILABLE_LEAVES << endl;
-    for (int i = 0; i < leaves.size(); i++) {
-        cout << i + 1 << ": " << leaves[i].first->value << endl;
-    }
-
-    int choice;
-    cout << INFO_CHOOSE_LEAF << leaves.size() << "): ";
-    cin >> choice;
-
-    if (choice < 1 || choice > leaves.size()) {
-        cout << ERROR_INV_CHOICE << endl;
-        return;
-    }
-
-    selectedLeafIndex = choice - 1;
+    selectedLeafIndex = 0;
 
     *this = *this + newTree;
-    cout << INFO_SUCC_JOIN << endl;
+
+    return Result<void, Error>::ok();
 }
 
 Tree& Tree::operator=(const Tree& other) {
@@ -236,11 +254,13 @@ Tree& Tree::operator=(const Tree& other) {
         delete root;
         root = copyNode(other.root);
     }
+
     return *this;
 }
 
 void Tree::findLeavesWithParents(Node* node, Node* parent, vector<pair<Node*, Node*>>& leaves) const {
     if (!node) return;
+
     if (node->children.empty()) {
         leaves.push_back(make_pair(node, parent));
     }
@@ -266,6 +286,7 @@ Tree Tree::operator+(const Tree& other) const {
             if (index >= leaves.size()) {
                 index = 0;
             }
+
             Node* leaf = leaves[index].first;
             Node* parent = leaves[index].second;
 
