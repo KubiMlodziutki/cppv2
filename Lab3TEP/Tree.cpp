@@ -2,6 +2,7 @@
 #include "Node.h"
 #include "Error.h"
 #include "Result.h"
+#include "Counters.h"
 #include <iostream>
 #include <sstream>
 #include <algorithm>
@@ -9,9 +10,100 @@
 
 using namespace std;
 
-Tree::Tree() : root(nullptr), selectedLeafIndex(0) {}
+Tree::Tree() : root(nullptr), selectedLeafIndex(0), counters(NULL) {}
 Tree::~Tree() {
     delete root;
+}
+
+Tree::Tree(Counters* count) : root(NULL), selectedLeafIndex(0), counters(count) {}
+
+Tree::Tree(const Tree& other) : root(nullptr), selectedLeafIndex(other.selectedLeafIndex), counters(other.counters) {
+    if (other.root) {
+        root = copyNode(other.root);
+    }
+    if (counters) {
+        counters->incrementCopy();
+    }
+}
+
+Tree::Tree(Tree&& other) : root(other.root), selectedLeafIndex(other.selectedLeafIndex), counters(other.counters) {
+    other.root = NULL;
+    other.selectedLeafIndex = 0;
+    other.counters = NULL;
+    if (counters) {
+        counters->incrementMove();
+    }
+}
+
+Tree Tree::operator=(const Tree& other) {
+    if (this != &other) {
+        delete root;
+        root = copyNode(other.root);
+        selectedLeafIndex = other.selectedLeafIndex;
+        counters = other.counters;
+
+        if (counters) {
+            counters->incrementCopy();
+        }
+    }
+
+    return *this;
+}
+
+Tree Tree::operator=(Tree&& other) {
+    if (this != &other) {
+        delete root;
+        root = other.root;
+        selectedLeafIndex = other.selectedLeafIndex;
+        counters = other.counters;
+
+        other.root = NULL;
+        other.selectedLeafIndex = 0;
+        other.counters = NULL;
+
+        if (counters) {
+            counters->incrementMove();
+        }
+    }
+
+    return *this;
+}
+
+Tree Tree::operator+(const Tree& other) const {
+    Tree result(this->counters);
+    if (!root) {
+        result.root = copyNode(other.root);
+    }
+    else {
+        result.root = copyNode(root);
+        vector<pair<Node*, Node*>> leaves;
+        findLeavesWithParents(result.root, nullptr, leaves);
+
+        if (!leaves.empty()) {
+            int index = selectedLeafIndex;
+            if (index >= leaves.size()) {
+                index = 0;
+            }
+
+            Node* leaf = leaves[index].first;
+            Node* parent = leaves[index].second;
+
+            if (parent == nullptr) {
+                delete leaf;
+                result.root = copyNode(other.root);
+            }
+            else {
+                for (int i = 0; i < parent->children.size(); i++) {
+                    if (parent->children[i] == leaf) {
+                        delete parent->children[i];
+                        parent->children[i] = copyNode(other.root);
+                        break;
+                    }
+                }
+            }
+        }
+    }
+    return result;
 }
 
 Node* Tree::copyNode(const Node* node) const {
@@ -225,7 +317,7 @@ double Tree::evaluate(Node* node, const vector<string>& vars, const vector<doubl
 }
 
 Result<void, Error> Tree::join(const string& formula) {
-    Tree newTree;
+    Tree newTree(this->counters);
     Result<void, Error> resultJoin = newTree.enter(formula);
 
     if (!resultJoin.isSuccess()) {
@@ -249,15 +341,6 @@ Result<void, Error> Tree::join(const string& formula) {
     return Result<void, Error>::ok();
 }
 
-Tree& Tree::operator=(const Tree& other) {
-    if (this != &other) {
-        delete root;
-        root = copyNode(other.root);
-    }
-
-    return *this;
-}
-
 void Tree::findLeavesWithParents(Node* node, Node* parent, vector<pair<Node*, Node*>>& leaves) const {
     if (!node) return;
 
@@ -269,41 +352,4 @@ void Tree::findLeavesWithParents(Node* node, Node* parent, vector<pair<Node*, No
             findLeavesWithParents(node->children[i], node, leaves);
         }
     }
-}
-
-Tree Tree::operator+(const Tree& other) const {
-    Tree result;
-    if (!root) {
-        result.root = copyNode(other.root);
-    }
-    else {
-        result.root = copyNode(root);
-        vector<pair<Node*, Node*>> leaves;
-        findLeavesWithParents(result.root, nullptr, leaves);
-
-        if (!leaves.empty()) {
-            int index = selectedLeafIndex;
-            if (index >= leaves.size()) {
-                index = 0;
-            }
-
-            Node* leaf = leaves[index].first;
-            Node* parent = leaves[index].second;
-
-            if (parent == nullptr) {
-                delete leaf;
-                result.root = copyNode(other.root);
-            }
-            else {
-                for (int i = 0; i < parent->children.size(); i++) {
-                    if (parent->children[i] == leaf) {
-                        delete parent->children[i];
-                        parent->children[i] = copyNode(other.root);
-                        break;
-                    }
-                }
-            }
-        }
-    }
-    return result;
 }

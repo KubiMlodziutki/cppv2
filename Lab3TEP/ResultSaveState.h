@@ -28,7 +28,6 @@ private:
     void saveTree(const Tree* tree);
 };
 
-// Deklaracja specjalizacji
 template <>
 void ResultSaveState::saveToFile<Tree*>(Result<Tree*, Error>& result);
 

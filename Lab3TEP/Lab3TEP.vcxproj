@@ -127,7 +127,11 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="Counters.h" />
     <ClInclude Include="Error.h" />
+    <ClInclude Include="MySmartPointer.h" />
+    <ClInclude Include="RefCounter.h" />
+    <ClInclude Include="TestObject.h" />
     <ClInclude Include="Tests.h" />
     <ClInclude Include="Node.h" />
     <ClInclude Include="Result.h" />
@@ -136,10 +140,12 @@
     <ClInclude Include="TreeUI.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="Counters.cpp" />
     <ClCompile Include="Error.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Node.cpp" />
     <ClCompile Include="ResultSaveState.cpp" />
+    <ClCompile Include="TestObject.cpp" />
     <ClCompile Include="Tests.cpp" />
     <ClCompile Include="Tree.cpp" />
     <ClCompile Include="TreeUI.cpp" />

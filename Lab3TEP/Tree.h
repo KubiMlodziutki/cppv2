@@ -7,12 +7,16 @@
 #include <string>
 #include <vector>
 
+class Counters;
 using namespace std;
 
 class Tree {
 public:
     Tree();
+    Tree(Counters* c);
+    Tree(const Tree& other);
     ~Tree();
+    Tree(Tree&& other);
 
     Result<void, Error> enter(const string& formula);
 
@@ -24,7 +28,8 @@ public:
 
     Result<void, Error> join(const string& formula);
 
-    Tree& operator=(const Tree& other);
+    Tree operator=(Tree&& other);
+    Tree operator=(const Tree& other);
     Tree operator+(const Tree& other) const;
 
     template <typename T, typename E>
@@ -33,6 +38,7 @@ public:
 private:
     Node* root;
     int selectedLeafIndex;
+    Counters* counters;
 
     Node* copyNode(const Node* node) const;
     Result<Node*, Error> parseTokens(const vector<string>& tokens, int& index);
