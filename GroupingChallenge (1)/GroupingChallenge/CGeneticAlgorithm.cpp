@@ -51,8 +51,8 @@ void CGeneticAlgorithm::vRunIteration(mt19937& cRandomEngine)
 
     while (v_new_population.size() < i_pop_size)
     {
-        int i_parent1_index = iTournamentSelection(v_population, cRandomEngine);
-        int i_parent2_index = iTournamentSelection(v_population, cRandomEngine);
+        int i_parent1_index = iSelectBetweenTwoSpecies(v_population, cRandomEngine);
+        int i_parent2_index = iSelectBetweenTwoSpecies(v_population, cRandomEngine);
 
         CIndividual& c_parent1 = v_population[i_parent1_index];
         CIndividual& c_parent2 = v_population[i_parent2_index];
@@ -89,7 +89,7 @@ void CGeneticAlgorithm::vRunIteration(mt19937& cRandomEngine)
     v_population = v_new_population;
 }
 
-int CGeneticAlgorithm::iTournamentSelection(const vector<CIndividual>& vPopulation, mt19937& cRandomEngine)
+int CGeneticAlgorithm::iSelectBetweenTwoSpecies(const vector<CIndividual>& vPopulation, mt19937& cRandomEngine)
 {
     uniform_int_distribution<int> c_distribution(i_INT_DIST_LOWER, vPopulation.size() - i_INT_DIST_SUBSTR);
 

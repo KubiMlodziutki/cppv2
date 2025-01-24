@@ -28,7 +28,7 @@ namespace NGroupingChallenge
         double dGetTimeLimit() const;
 
     private:
-        int iTournamentSelection(const vector<CIndividual>& vPopulation,
+        int iSelectBetweenTwoSpecies(const vector<CIndividual>& vPopulation,
             mt19937& cRandomEngine);
 
         int i_pop_size;

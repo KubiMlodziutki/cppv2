@@ -47,7 +47,7 @@ pair<CIndividual, CIndividual> CIndividual::cCrossover(const CIndividual& cOther
     int i_size = v_genotype.size();
 
     uniform_int_distribution<int> c_int_dist(i_INT_DIST_LOWER, i_size - i_INT_DIST_LOWER);
-    int i_cut = c_int_dist(cRandomEngine);
+    int i_where_cut = c_int_dist(cRandomEngine);
 
     vector<int> v_child1;
     vector<int> v_child2;
@@ -55,20 +55,20 @@ pair<CIndividual, CIndividual> CIndividual::cCrossover(const CIndividual& cOther
     v_child1.reserve(i_size);
     v_child2.reserve(i_size);
 
-    for (int i = 0; i < i_cut; i++)
+    for (int i = 0; i < i_where_cut; i++)
     {
         v_child1.push_back(v_genotype[i]);
     }
-    for (int i = i_cut; i < i_size; i++)
+    for (int i = i_where_cut; i < i_size; i++)
     {
         v_child1.push_back(cOther.v_genotype[i]);
     }
 
-    for (int i = 0; i < i_cut; i++)
+    for (int i = 0; i < i_where_cut; i++)
     {
         v_child2.push_back(cOther.v_genotype[i]);
     }
-    for (int i = i_cut; i < i_size; i++)
+    for (int i = i_where_cut; i < i_size; i++)
     {
         v_child2.push_back(v_genotype[i]);
     }
