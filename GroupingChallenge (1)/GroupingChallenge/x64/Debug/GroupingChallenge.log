@@ -1,0 +1,7 @@
+﻿  CGeneticAlgorithm.cpp
+d:\cppprojects\groupingchallenge (1)\groupingchallenge\cgeneticalgorithm.cpp(17): error C2512: "NGroupingChallenge::CIndividual": niedostępny odpowiedni konstruktor domyślny
+  d:\cppprojects\groupingchallenge (1)\groupingchallenge\cindividual.h(11): note: zobacz deklarację „NGroupingChallenge::CIndividual”
+  CIndividual.cpp
+  GroupingChallenge.cpp
+  main.cpp
+  Generowanie kodu...
